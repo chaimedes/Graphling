@@ -1,0 +1,359 @@
+<html>
+<head>
+<title></title>
+<style type="text/css">
+.node {
+width: 50px;
+height: 50px;
+background: #444;
+margin: 10px;
+text-align: center;
+color: white;
+}
+#zone {
+float: left;
+}
+#controls {
+float: left;
+}
+#report {
+	margin: 20px;
+	float: right;
+	clear: right;
+}
+</style>
+<script>
+
+var NODEW = 50;
+var NODEH = 50;
+var EDGEL = 20;
+var CANW = 800; // The width for the drawing canvas
+var CANH = 600; // The height for the drawing canvas
+var curfx = CANW/2;
+var curfy = CANH/2;
+var curr = NODEW;
+var cura = 0;
+
+Spot.prototype = {
+/*
+	getX: function() {
+		return x;
+	},
+	getY: function() {
+		return y;
+	}
+*/
+}
+function Spot(inx, iny) {
+	this.x = inx;
+	this.y = iny;
+	this.getX = function() {
+		return this.x;
+	}
+	this.getY = function() {
+		return this.y;
+	}
+}
+
+// Returns the next free spot as defined by the addPhysicalVert() function.
+function getFreeSpot() {
+	return new Spot(curfx, curfy);
+}
+
+function Square(inx, iny, inw, inh) {
+	this.x = inx;
+	this.y = iny;	
+	this.w = inw;
+	this.h = inh;
+	this.getX = function() {
+		return this.x;
+	}
+	this.getY = function() {
+		return this.y;
+	}
+	this.getW = function() {
+		return this.w;
+	}
+	this.getH = function() {
+		return this.h;
+	}
+} // End of Square constructor
+
+
+// Onload function. Set everything up.
+window.onload = function() {
+
+	// Set up the canvas
+	var canv = document.getElementById("gcanvas");
+	gcanvas.style.width=CANW + "px";
+	gcanvas.style.height=CANH + "px";
+	var ctx = canv.getContext("2d");
+	
+	var report = document.getElementById("report");
+	
+	
+	// Define the Graph constructor.
+	function Graph() {
+	}
+	
+	// Define the Graph prototype object.
+	Graph.prototype = {
+	
+		// Holds the nodes
+		verts: new Array(),
+		
+		// Holds the edges
+		edges: new Array(),
+		
+		// Finds and returns the next free node ID
+		getNewId:function() {
+			var nid = 0;
+			for (i in this.verts) {
+				if (i >= nid) {
+					nid++;
+				}
+			}
+			return nid;
+		},
+		
+		// Takes a node, returns true if it exists in this graph.
+		nodeExists:function(node) {
+			return this.nodeExistsById(node.nid);
+		},
+		
+		// Takes the ID of a node, returns true if it exists in this graph.
+		nodeExistsById:function(nodeid) {
+			for (var n in this.verts) {
+				if (n.nid == nodeid) {
+					return true;
+				}
+			}
+			return false;
+		},
+		
+		// Creates a new node and adds it to the node list.
+		addNode:function() {
+			var node = new Node(this.getNewId());
+			this.verts.push(node);
+			return node;
+		},
+		
+		// Remove a node from the graph safely.
+		removeNode:function(id) {
+			var nok = this.verts[id];
+			if (!nok) { return "Node " + id + " doesn't seem to exist."; }
+			for (var e = 0; e < this.edges.length; e++) {
+				if (this.edges[e].n1.nid == id) {
+					//this.disconnect(id, this.edges[e].n2.nid);
+					    this.simpleDisconnect(e);
+				}
+				if (this.edges[e].n2.nid == id) {
+					//this.disconnect(id, this.edges[e].n1.nid);
+					    this.simpleDisconnect(e);
+				}
+			}
+			this.verts[id] == null;
+		},
+		getNode:function(nid) {
+			for (var i in this.verts) {
+				if (i.nid == nid) {
+					return i;
+				}
+			}
+		},
+		
+		// Connect two nodes with a new edge.
+		// This function INTENTIONALLY does not check if the nodes are already connected.
+		// That option is given to the user via the connected() function.
+		connect:function(n1, n2) {
+			var n1ok = this.verts[n1];
+			var n2ok = this.verts[n2];
+		    if (n1ok && n2ok) {
+				this.edges.push(new Edge(n1ok, n2ok));
+				return "Connecting " + n1 + " and " + n2 + ": success.";
+			}
+			return "Node " + ((!n1ok)?n1:n2) + " doesn't seem to exist";
+		},
+// Perform a simple disconnect by removing the specified edge.
+// No safety features.		
+simpleDisconnect:function(edge) {
+alert(edge);
+if (this.edges[edge] != null) {
+					    alert(edge + " " + this.edges[edge].n1.nid + " " + this.edges[edge].n2.nid);
+					    this.edges[e] = null;
+}
+},
+		// Disconnect two nodes, removing their edge.
+		// This function DOES check if the nodes are already connected.
+		// However, it will report success for two nodes that weren't originally connected.
+		disconnect:function(n1, n2) {
+			var n1ok = this.verts[n1];
+			var n2ok = this.verts[n2];
+			if (n1ok && n2ok) {
+alert("Disconnecting " + n1 + " and " + n2 + ".");
+				// Remove all connections that might exist
+				for (var e = 0; e < this.edges.length; e++) {
+					if ( (this.edges[e].n1.nid == n1 && this.edges[e].n2.nid == n2)	|| (this.edges[e].n1.nid == n2 || this.edges[e].n2.nid == n1) ) {
+						this.edges[e] = null;
+					}
+				}
+				return "Disconnecting " + n1 + " and " + n2 + ": success.";
+			}
+			return "Node " + ((!n1ok)?n2:n1) + " doesn't seem to exist";
+		},
+		
+		// Check if two nodes are already connected.
+		connected:function(n1, n2) {
+			var n1ok = this.nodeExists(n1);
+			var n2ok = this.nodeExists(n2);
+			if (!n1ok || !n2ok) { return "Node " + (!n1ok?n2:n1) + " doesn't seem to exist"; }
+			for (i in this.edges) {
+				if ( (i.n1 == n1 && i.n2 == n2) || (i.n1 == n2 && i.n2 == n1) ) {
+					return true;
+				}
+			}
+			return false;
+		},
+		
+		// Update the actual drawing parameters based on adding a new vertex.
+		addPhysicalVert:function() {
+		
+			var curSpot = getFreeSpot();
+			
+			// Right now, just update the free spot radially, moving slightly outward each time.
+			// @TODO write a better way to place new nodes.
+			curr += EDGEL;
+			cura += (360 / this.verts.length);
+			curfx = curr * Math.cos(cura*(Math.PI/180)) + CANW/2;
+			curfy = curr * Math.sin(cura*(Math.PI/180)) + CANH/2;
+			
+			// Return the spot to place the new node.
+			return new Square(curSpot.getX(), curSpot.getY(), NODEW, NODEH);
+			
+		},
+		
+		tetrahedral:function() {
+			for (var i = 0; i < 4; i++) {
+				this.addNode();
+			}
+			for (var j = 0; j < this.verts.length; j++) {
+				for (var k = 0; k < this.verts.length; k++) {
+					if (j != k && !this.connected(j, k)) {
+						this.connect(j, k);
+					}
+				}
+			}
+		},
+		
+		// Draw the graph itself
+		draw:function() {
+		
+			// Clear the screen and reset the physical variables
+			ctx.fillStyle="#FFFFFF";
+			ctx.fillRect(0,0,CANW,CANH);
+			curfx = CANW/2;
+			curfy = CANH/2;
+			curr = NODEW;
+			cura = 0;
+
+			// For every vertex...
+			for (v in this.verts) {
+				var vert = this.verts[v];
+				vert.entry = this.addPhysicalVert();
+				vert.cx = vert.entry.getX() + (vert.entry.getW()/2);
+				vert.cy = vert.entry.getY() + (vert.entry.getH()/2);
+				ctx.fillStyle = "#444444";
+				//ctx.fillRect(vert.entry.getX(), vert.entry.getY(), vert.entry.getW(), vert.entry.getH());
+				ctx.beginPath();
+				ctx.arc(vert.entry.getX()+vert.entry.getW()/2,vert.entry.getY()+vert.entry.getH()/2,vert.entry.getW()/2,0,2*Math.PI);
+				ctx.fill(); 
+				ctx.fillStyle = "#FFFFFF";
+				ctx.font = "18px Arial";
+				ctx.fillText(vert.nid, vert.cx, vert.cy);
+			}
+			for (e in this.edges) {
+				var edge = this.edges[e];
+				this.c = color();
+				ctx.beginPath();
+				ctx.strokeStyle="rgb(" + this.c.R + "," + this.c.G + "," + this.c.B + ")";
+				ctx.moveTo(edge.n1.cx, edge.n1.cy);
+				ctx.lineTo(edge.n2.cx, edge.n2.cy);
+				/*
+				var x = Math.pow((this.n2.cx - this.n1.cx), 2);
+				var y = Math.pow((this.n2.cy - this.n1.cy), 2);
+				var dist = Math.sqrt(x+			alert('looping');y);
+				ctx.arcTo(this.n1.cx, this.n1.cy, this.n2.cx, this.n2.cy, dist);
+				*/
+				ctx.stroke();
+			}
+		} // End of draw()
+		
+	} // End of Graph prototype
+
+	function Node(inid) {
+		this.nid = inid;
+
+	} // End of Node constructor
+
+	Node.prototype = {
+		//draw:function() {
+			
+	} // End of Node prototype
+
+	function color() {
+		var r = Math.round(Math.random() * 255);
+		var g = Math.round(Math.random() * 255);
+		var b = Math.round(Math.random() * 255);
+		return {R:r, G:g, B:b};
+	}
+	
+	function Edge(in1, in2) {
+		this.n1 = in1;
+		this.n2 = in2;
+	
+	}
+
+	Edge.prototype = {
+	} // End of Edge prototype
+
+document.getElementById("addnode").addEventListener("click", function() {
+g.addNode();
+g.draw();
+});
+document.getElementById("connect").addEventListener("click", function() {
+report.innerHTML = report.innerHTML + "<br />" + g.connect(document.getElementById("v1").value, document.getElementById("v2").value);
+g.draw();
+});
+document.getElementById("delete").addEventListener("click", function() {
+g.removeNode(document.getElementById("vd").value);
+g.draw();
+});
+
+/*
+	var g = new Graph();
+	for (var i = 0; i < 5; i++) {
+		g.addNode();
+	}
+	*/
+	var g = new Graph();
+	g.tetrahedral();
+	g.draw();
+
+} // End of onload function
+
+</script>
+</head>
+<body>
+<div id="zone"></div>
+<canvas id="gcanvas" width="800" height="600"></canvas>
+<div id="controls">
+<button id="addnode">Add Node</button><br />
+<input type="text" id="v1" placeholder="ID of Vertex #1" />
+<input type="text" id="v2" placeholder="ID of Vertex #2" />
+<button id="connect">Connect</button><br />
+<input type="text" id="vd" placeholder="ID of Vertex to Delete" />
+<button id="delete">Delete</button>
+</div><!-- End of controls div -->
+<div id="report"></div>
+</body>
+</html>
