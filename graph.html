@@ -1,27 +1,10 @@
 <html>
 <head>
-<title></title>
-<style type="text/css">
-.node {
-width: 50px;
-height: 50px;
-background: #444;
-margin: 10px;
-text-align: center;
-color: white;
-}
-#zone {
-float: left;
-}
-#controls {
-float: left;
-}
-#report {
-	margin: 20px;
-	float: right;
-	clear: right;
-}
-</style>
+<title>Graphling</title>
+<link rel="stylesheet" type="text/css" href="styles.css" />
+<script src="Spot.js"></script>
+<script src="Square.js"></script>
+<script src="Utilities.js"></script>
 <script>
 
 var NODEW = 50;
@@ -34,51 +17,10 @@ var curfy = CANH/2;
 var curr = NODEW;
 var cura = 0;
 
-Spot.prototype = {
-/*
-	getX: function() {
-		return x;
-	},
-	getY: function() {
-		return y;
-	}
-*/
-}
-function Spot(inx, iny) {
-	this.x = inx;
-	this.y = iny;
-	this.getX = function() {
-		return this.x;
-	}
-	this.getY = function() {
-		return this.y;
-	}
-}
-
 // Returns the next free spot as defined by the addPhysicalVert() function.
 function getFreeSpot() {
 	return new Spot(curfx, curfy);
 }
-
-function Square(inx, iny, inw, inh) {
-	this.x = inx;
-	this.y = iny;	
-	this.w = inw;
-	this.h = inh;
-	this.getX = function() {
-		return this.x;
-	}
-	this.getY = function() {
-		return this.y;
-	}
-	this.getW = function() {
-		return this.w;
-	}
-	this.getH = function() {
-		return this.h;
-	}
-} // End of Square constructor
-
 
 // Onload function. Set everything up.
 window.onload = function() {
@@ -152,7 +94,8 @@ window.onload = function() {
 					    this.simpleDisconnect(e);
 				}
 			}
-			this.verts[id] == null;
+			this.verts = this.verts.splice(id,1);
+			//this.verts[id] == null;
 		},
 		getNode:function(nid) {
 			for (var i in this.verts) {
@@ -177,9 +120,9 @@ window.onload = function() {
 // Perform a simple disconnect by removing the specified edge.
 // No safety features.		
 simpleDisconnect:function(edge) {
-alert(edge);
 if (this.edges[edge] != null) {
 					    alert(edge + " " + this.edges[edge].n1.nid + " " + this.edges[edge].n2.nid);
+					    //this.edges = this.edges.splice(e,1);
 					    this.edges[e] = null;
 }
 },
@@ -259,6 +202,7 @@ alert("Disconnecting " + n1 + " and " + n2 + ".");
 			// For every vertex...
 			for (v in this.verts) {
 				var vert = this.verts[v];
+if (vert == null) { continue; }
 				vert.entry = this.addPhysicalVert();
 				vert.cx = vert.entry.getX() + (vert.entry.getW()/2);
 				vert.cy = vert.entry.getY() + (vert.entry.getH()/2);
@@ -273,6 +217,7 @@ alert("Disconnecting " + n1 + " and " + n2 + ".");
 			}
 			for (e in this.edges) {
 				var edge = this.edges[e];
+if (edge == null) { continue; }
 				this.c = color();
 				ctx.beginPath();
 				ctx.strokeStyle="rgb(" + this.c.R + "," + this.c.G + "," + this.c.B + ")";
@@ -299,13 +244,6 @@ alert("Disconnecting " + n1 + " and " + n2 + ".");
 		//draw:function() {
 			
 	} // End of Node prototype
-
-	function color() {
-		var r = Math.round(Math.random() * 255);
-		var g = Math.round(Math.random() * 255);
-		var b = Math.round(Math.random() * 255);
-		return {R:r, G:g, B:b};
-	}
 	
 	function Edge(in1, in2) {
 		this.n1 = in1;
