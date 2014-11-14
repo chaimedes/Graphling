@@ -18,8 +18,8 @@ float: left;
 }
 #report {
 	margin: 20px;
-	float: right;
-	clear: right;
+	clear: left;
+	float: left;
 }
 </style>
 <script>
@@ -91,6 +91,13 @@ window.onload = function() {
 	
 	var report = document.getElementById("report");
 	
+	function reportLine(text) {
+		report.innerHTML = report.innerHTML + "<br />" + text;
+	}
+	function report(text) {
+		report.innerHTML = report.innerHTML + text;
+	}
+	
 	
 	// Define the Graph constructor.
 	function Graph() {
@@ -133,26 +140,30 @@ window.onload = function() {
 		
 		// Creates a new node and adds it to the node list.
 		addNode:function() {
-			var node = new Node(this.getNewId());
+			var idToUse = this.getNewId();
+			var node = new Node(idToUse);
 			this.verts.push(node);
+			reportLine("Added new node with id " + idToUse + ".");
 			return node;
 		},
 		
 		// Remove a node from the graph safely.
 		removeNode:function(id) {
+			reportLine("Starting removal of node " + id + ".");
 			var nok = this.verts[id];
 			if (!nok) { return "Node " + id + " doesn't seem to exist."; }
 			for (var e = 0; e < this.edges.length; e++) {
-				if (this.edges[e].n1.nid == id) {
+				if (this.edges[e].n1 && this.edges[e].n1.nid == id) {
 					//this.disconnect(id, this.edges[e].n2.nid);
 					    this.simpleDisconnect(e);
 				}
-				if (this.edges[e].n2.nid == id) {
+				if (this.edges[e].n2 && this.edges[e].n2.nid == id) {
 					//this.disconnect(id, this.edges[e].n1.nid);
 					    this.simpleDisconnect(e);
 				}
 			}
 			this.verts[id] == null;
+			reportLine("Removed node " + id + ".");
 		},
 		getNode:function(nid) {
 			for (var i in this.verts) {
@@ -174,15 +185,17 @@ window.onload = function() {
 			}
 			return "Node " + ((!n1ok)?n1:n2) + " doesn't seem to exist";
 		},
-// Perform a simple disconnect by removing the specified edge.
-// No safety features.		
-simpleDisconnect:function(edge) {
-alert(edge);
-if (this.edges[edge] != null) {
-					    alert(edge + " " + this.edges[edge].n1.nid + " " + this.edges[edge].n2.nid);
-					    this.edges[e] = null;
-}
-},
+		// Perform a simple disconnect by removing the specified edge.
+		// No safety features.		
+		simpleDisconnect:function(edge) {
+			alert(edge);
+			report("Removing edge " + edge + ".");
+			if (this.edges[edge] != null) {
+				alert(edge + " " + this.edges[edge].n1.nid + " " + this.edges[edge].n2.nid);
+				this.edges[e] = null;
+			}
+			reportLine("...success.");
+		},
 		// Disconnect two nodes, removing their edge.
 		// This function DOES check if the nodes are already connected.
 		// However, it will report success for two nodes that weren't originally connected.
@@ -190,7 +203,7 @@ if (this.edges[edge] != null) {
 			var n1ok = this.verts[n1];
 			var n2ok = this.verts[n2];
 			if (n1ok && n2ok) {
-alert("Disconnecting " + n1 + " and " + n2 + ".");
+				alert("Disconnecting " + n1 + " and " + n2 + ".");
 				// Remove all connections that might exist
 				for (var e = 0; e < this.edges.length; e++) {
 					if ( (this.edges[e].n1.nid == n1 && this.edges[e].n2.nid == n2)	|| (this.edges[e].n1.nid == n2 || this.edges[e].n2.nid == n1) ) {
@@ -316,18 +329,18 @@ alert("Disconnecting " + n1 + " and " + n2 + ".");
 	Edge.prototype = {
 	} // End of Edge prototype
 
-document.getElementById("addnode").addEventListener("click", function() {
-g.addNode();
-g.draw();
-});
-document.getElementById("connect").addEventListener("click", function() {
-report.innerHTML = report.innerHTML + "<br />" + g.connect(document.getElementById("v1").value, document.getElementById("v2").value);
-g.draw();
-});
-document.getElementById("delete").addEventListener("click", function() {
-g.removeNode(document.getElementById("vd").value);
-g.draw();
-});
+	document.getElementById("addnode").addEventListener("click", function() {
+	g.addNode();
+	g.draw();
+	});
+	document.getElementById("connect").addEventListener("click", function() {
+	report.innerHTML = report.innerHTML + "<br />" + g.connect(document.getElementById("v1").value, document.getElementById("v2").value);
+	g.draw();
+	});
+	document.getElementById("delete").addEventListener("click", function() {
+	g.removeNode(document.getElementById("vd").value);
+	g.draw();
+	});
 
 /*
 	var g = new Graph();
@@ -345,7 +358,6 @@ g.draw();
 </head>
 <body>
 <div id="zone"></div>
-<canvas id="gcanvas" width="800" height="600"></canvas>
 <div id="controls">
 <button id="addnode">Add Node</button><br />
 <input type="text" id="v1" placeholder="ID of Vertex #1" />
@@ -355,5 +367,6 @@ g.draw();
 <button id="delete">Delete</button>
 </div><!-- End of controls div -->
 <div id="report"></div>
+<canvas id="gcanvas" width="800" height="600"></canvas>
 </body>
 </html>
