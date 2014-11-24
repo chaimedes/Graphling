@@ -34,9 +34,10 @@ window.onload = function() {
 	var report = document.getElementById("report");
 	
 	function reportLine(text) {
-		report.innerHTML = report.innerHTML + "<br />" + text;
+		report.innerHTML = report.innerHTML + text + "<br />";
 	}
-	function report(text) {
+
+	function reportSingle(text) {
 		report.innerHTML = report.innerHTML + text;
 	}
 	
@@ -94,17 +95,24 @@ window.onload = function() {
 			reportLine("Starting removal of node " + id + ".");
 			var nok = this.verts[id];
 			if (!nok) { return "Node " + id + " doesn't seem to exist."; }
+
+			/* Hold the edges to delete until AFTER the entire iteration,
+				because otherwise the array resizes and you miss edges. */
+			var spliceList = new Array();
 			for (var e = 0; e < this.edges.length; e++) {
-				if (this.edges[e].n1 && this.edges[e].n1.nid == id) {
+				if (this.edges[e] != null && this.edges[e].n1.nid == id) {
 					//this.disconnect(id, this.edges[e].n2.nid);
-					    this.simpleDisconnect(e);
+					    this.simpleDisconnect(e, spliceList);
 				}
-				if (this.edges[e].n2 && this.edges[e].n2.nid == id) {
+				if (this.edges[e] != null && this.edges[e].n2.nid == id) {
 					//this.disconnect(id, this.edges[e].n1.nid);
-					    this.simpleDisconnect(e);
+					    this.simpleDisconnect(e, spliceList);
 				}
 			}
-			this.verts = this.verts.splice(id,1);
+			for (var e1 = 0; e1 < spliceList.length; e1++) {
+				this.edges.splice(spliceList[e1], 1);
+			}
+			this.verts.splice(id,1);
 			//this.verts[id] == null;
 			reportLine("Removed node " + id + ".");
 		},
@@ -124,21 +132,24 @@ window.onload = function() {
 			var n2ok = this.verts[n2];
 		    if (n1ok && n2ok) {
 				this.edges.push(new Edge(n1ok, n2ok));
-				return "Connecting " + n1 + " and " + n2 + ": success.";
+				return "Connecting " + n1 + " and " + n2 + ": success.<br />";
 			}
 			return "Node " + ((!n1ok)?n1:n2) + " doesn't seem to exist";
 		},
+
 		// Perform a simple disconnect by removing the specified edge.
 		// No safety features.		
-		simpleDisconnect:function(edge) {
-			alert(edge);
-			report("Removing edge " + edge + ".");
+		simpleDisconnect:function(edge, sList) {
+			reportSingle("Removing edge " + edge + "(" + this.edges[edge].n1.nid + ", " + this.edges[edge].n2.nid + ").");
 			if (this.edges[edge] != null) {
-				alert(edge + " " + this.edges[edge].n1.nid + " " + this.edges[edge].n2.nid);
-				this.edges[e] = null;
+				//alert("Edge " + edge + " has nodes " + this.edges[edge].n1.nid + " and " + this.edges[edge].n2.nid);
+				this.edges[edge] = null;
+				//this.edges.splice(edge, 1);
+				sList.push(edge);
 			}
 			reportLine("...success.");
 		},
+
 		// Disconnect two nodes, removing their edge.
 		// This function DOES check if the nodes are already connected.
 		// However, it will report success for two nodes that weren't originally connected.
