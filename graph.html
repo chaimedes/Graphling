@@ -17,6 +17,8 @@ var curfy = CANH/2;
 var curr = NODEW;
 var cura = 0;
 
+var ANIM_SPEED = 1000; // MS
+
 // Returns the next free spot as defined by the addPhysicalVert() function.
 function getFreeSpot() {
 	return new Spot(curfx, curfy);
@@ -44,6 +46,7 @@ window.onload = function() {
 	
 	// Define the Graph constructor.
 	function Graph() {
+		this.tickTimer = 0;
 	}
 	
 	// Define the Graph prototype object.
@@ -182,6 +185,17 @@ window.onload = function() {
 			return false;
 		},
 		
+		checkSpot:function() {
+			for (var v = 0; v < this.verts.length; v++) {
+				if (this.verts[v].entry != null) {
+					if ((Math.sqrt(Math.pow((curfx-this.verts[v].entry.getX()),2) + Math.pow((curfy-this.verts[v].entry.getY()),2))) <= (NODEW + 20)) {
+						return false;
+					}
+				}
+			}
+			return true;
+		},
+		
 		// Update the actual drawing parameters based on adding a new vertex.
 		addPhysicalVert:function() {
 		
@@ -194,14 +208,49 @@ window.onload = function() {
 			curfx = curr * Math.cos(cura*(Math.PI/180)) + CANW/2;
 			curfy = curr * Math.sin(cura*(Math.PI/180)) + CANH/2;
 			
+			curfx = Math.floor(Math.random() * CANW);
+			curfy = Math.floor(Math.random() * CANH);
+			
+			while (!this.checkSpot()) {
+				curfx = Math.floor(Math.random() * CANW);
+				curfy = Math.floor(Math.random() * CANH);
+			}
+			
 			// Return the spot to place the new node.
 			return new Square(curSpot.getX(), curSpot.getY(), NODEW, NODEH);
 			
 		},
 		
 		tetrahedral:function() {
+			var self = this;
 			for (var i = 0; i < 4; i++) {
 				this.addNode();
+			}
+			for (var j = 0; j < this.verts.length; j++) {
+				for (var k = 0; k < this.verts.length; k++) {
+					if (j != k && !this.connected(j, k)) {
+						setTimeout(function() {self.connect(j, k); self.draw(); }, 50);
+					}
+				}
+			}
+		},
+		
+		// Some really basic animation that works around the self-referencing timer problem.
+		tick:function() {
+			tickLimit = 10;
+			var n = 0;
+			if (this.tickTimer < tickLimit) {
+				this.tickTimer++;
+			}
+			else { return; }
+			if (this.tickTimer < tickLimit) {
+				n = this.addNode();
+				n.highlight(true);
+				for (var j = 0; j < this.verts.length; j++) {
+					if (n.nid != this.verts[j].nid) {
+						n.highlight(false);
+					}
+				}
 			}
 			for (var j = 0; j < this.verts.length; j++) {
 				for (var k = 0; k < this.verts.length; k++) {
@@ -210,6 +259,7 @@ window.onload = function() {
 					}
 				}
 			}
+			this.draw();
 		},
 		
 		// Draw the graph itself
@@ -218,8 +268,8 @@ window.onload = function() {
 			// Clear the screen and reset the physical variables
 			ctx.fillStyle="#FFFFFF";
 			ctx.fillRect(0,0,CANW,CANH);
-			curfx = CANW/2;
-			curfy = CANH/2;
+			//curfx = CANW/2;
+			//curfy = CANH/2;
 			curr = NODEW;
 			cura = 0;
 
@@ -227,7 +277,9 @@ window.onload = function() {
 			for (v in this.verts) {
 				var vert = this.verts[v];
 if (vert == null) { continue; }
-				vert.entry = this.addPhysicalVert();
+				if (vert.entry == null) {
+					vert.entry = this.addPhysicalVert();
+				}
 				vert.cx = vert.entry.getX() + (vert.entry.getW()/2);
 				vert.cy = vert.entry.getY() + (vert.entry.getH()/2);
 				ctx.fillStyle = "#444444";
@@ -235,6 +287,15 @@ if (vert == null) { continue; }
 				ctx.beginPath();
 				ctx.arc(vert.entry.getX()+vert.entry.getW()/2,vert.entry.getY()+vert.entry.getH()/2,vert.entry.getW()/2,0,2*Math.PI);
 				ctx.fill(); 
+				if (vert.isHighlighted()) {
+					ctx.beginPath();
+					ctx.strokeStyle = "#883";
+					ctx.lineWidth = 3;
+					ctx.arc(vert.entry.getX()+vert.entry.getW()/2,vert.entry.getY()+vert.entry.getH()/2,vert.entry.getW()/2,0,2*Math.PI);
+					ctx.stroke();
+				}
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = "#000";
 				ctx.fillStyle = "#FFFFFF";
 				ctx.font = "18px Arial";
 				ctx.fillText(vert.nid, vert.cx, vert.cy);
@@ -261,11 +322,21 @@ if (edge == null) { continue; }
 
 	function Node(inid) {
 		this.nid = inid;
+		this.highlighted = false;
 
 	} // End of Node constructor
 
 	Node.prototype = {
-		//draw:function() {
+	
+		// Toggles the highlighting of this node (used by draw())
+		highlight:function(toggle) {
+			this.highlighted = toggle;
+		},
+		
+		// Returns the value of the highlight toggle
+		isHighlighted:function() {
+			return this.highlighted;
+		}
 			
 	} // End of Node prototype
 	
@@ -298,8 +369,9 @@ if (edge == null) { continue; }
 	}
 	*/
 	var g = new Graph();
-	g.tetrahedral();
-	g.draw();
+	//g.tetrahedral();
+	window.setInterval(function() { g.tick(); }, ANIM_SPEED);
+	//g.draw();
 
 } // End of onload function
 
