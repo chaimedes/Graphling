@@ -5,6 +5,7 @@
 <script src="Spot.js"></script>
 <script src="Square.js"></script>
 <script src="Utilities.js"></script>
+<script type="text/javascript" src="jquery-1.11.1.min.js"></script>
 <script>
 
 var NODEW = 50;
@@ -47,6 +48,7 @@ window.onload = function() {
 	// Define the Graph constructor.
 	function Graph() {
 		this.tickTimer = 0;
+		this.nodeSelected = -1;
 	}
 	
 	// Define the Graph prototype object.
@@ -101,7 +103,7 @@ window.onload = function() {
 
 			/* Hold the edges to delete until AFTER the entire iteration,
 				because otherwise the array resizes and you miss edges. */
-			var spliceList = new Array();
+			spliceList = new Array();
 			for (var e = 0; e < this.edges.length; e++) {
 				if (this.edges[e] != null && this.edges[e].n1.nid == id) {
 					//this.disconnect(id, this.edges[e].n2.nid);
@@ -113,10 +115,12 @@ window.onload = function() {
 				}
 			}
 			for (var e1 = 0; e1 < spliceList.length; e1++) {
+				reportLine("Removing edge " + spliceList[e1] + ".");
 				this.edges.splice(spliceList[e1], 1);
 			}
 			this.verts.splice(id,1);
 			//this.verts[id] == null;
+			delete spliceList;
 			reportLine("Removed node " + id + ".");
 		},
 		getNode:function(nid) {
@@ -134,7 +138,10 @@ window.onload = function() {
 			var n1ok = this.verts[n1];
 			var n2ok = this.verts[n2];
 		    if (n1ok && n2ok) {
-				this.edges.push(new Edge(n1ok, n2ok));
+				var temp = new Edge(n1ok, n2ok);
+				temp.setText(Math.floor(Math.random()*5));
+				this.edges.push(temp);
+				reportLine("Connecting " + n1 + " and " + n2 + ": success.");
 				return "Connecting " + n1 + " and " + n2 + ": success.<br />";
 			}
 			return "Node " + ((!n1ok)?n1:n2) + " doesn't seem to exist";
@@ -143,11 +150,9 @@ window.onload = function() {
 		// Perform a simple disconnect by removing the specified edge.
 		// No safety features.		
 		simpleDisconnect:function(edge, sList) {
-			reportSingle("Removing edge " + edge + "(" + this.edges[edge].n1.nid + ", " + this.edges[edge].n2.nid + ").");
+			reportSingle("Disconnecting edge " + edge + "(" + this.edges[edge].n1.nid + ", " + this.edges[edge].n2.nid + ").");
 			if (this.edges[edge] != null) {
-				//alert("Edge " + edge + " has nodes " + this.edges[edge].n1.nid + " and " + this.edges[edge].n2.nid);
 				this.edges[edge] = null;
-				//this.edges.splice(edge, 1);
 				sList.push(edge);
 			}
 			reportLine("...success.");
@@ -178,8 +183,10 @@ window.onload = function() {
 			var n2ok = this.nodeExists(n2);
 			if (!n1ok || !n2ok) { return "Node " + (!n1ok?n2:n1) + " doesn't seem to exist"; }
 			for (i in this.edges) {
-				if ( (i.n1 == n1 && i.n2 == n2) || (i.n1 == n2 && i.n2 == n1) ) {
+				if (this.edges[i] !== null) {
+				if ( (this.edges[i].n1.nid == n1 && this.edges[i].n2.nid == n2) || (this.edges[i].n1.nid == n2 && this.edges[i].n2.nid == n1) ) {
 					return true;
+				}
 				}
 			}
 			return false;
@@ -221,6 +228,24 @@ window.onload = function() {
 			
 		},
 		
+		// Update the actual drawing parameters based on adding a new vertex.
+		addPhysicalVertDefined:function(x, y) {
+			
+			// Get a random position
+			curfx = Math.floor(Math.random() * CANW);
+			curfy = Math.floor(Math.random() * CANH);
+			
+			// Check the position for collisions and update as many times as necessary.
+			while (!this.checkSpot()) {
+				curfx = Math.floor(Math.random() * CANW);
+				curfy = Math.floor(Math.random() * CANH);
+			}
+			
+			// Return the spot to place the new node.
+			return new Square(x, y, NODEW, NODEH);
+			
+		}, // End of addPhysicalVertDefined(2)
+		
 		tetrahedral:function() {
 			var self = this;
 			for (var i = 0; i < 4; i++) {
@@ -243,23 +268,46 @@ window.onload = function() {
 				this.tickTimer++;
 			}
 			else { return; }
-			if (this.tickTimer < tickLimit) {
+			if (this.tickTimer < 5) {
 				n = this.addNode();
 				n.highlight(true);
 				for (var j = 0; j < this.verts.length; j++) {
 					if (n.nid != this.verts[j].nid) {
-						n.highlight(false);
+						this.verts[j].highlight(false);
 					}
 				}
 			}
 			for (var j = 0; j < this.verts.length; j++) {
 				for (var k = 0; k < this.verts.length; k++) {
 					if (j != k && !this.connected(j, k)) {
+						reportLine(j + " and " + k + " not connected yet.");
 						this.connect(j, k);
 					}
 				}
 			}
 			this.draw();
+		},
+		
+		highlightOnly:function(n) {
+			n.highlight(true);
+			for (var j = 0; j < this.verts.length; j++) {
+				if (n.nid != this.verts[j].nid) {
+					this.verts[j].highlight(false);
+				}
+			}
+		},
+		
+		checkSpotForNode:function(x, y) {
+			for (var v in this.verts) {
+				if (this.verts[v].entry != null) {
+					cx = this.verts[v].entry.getX() + (this.verts[v].entry.getW()/2);
+					cy = this.verts[v].entry.getY() + (this.verts[v].entry.getH()/2);
+					if ( (x < cx + (NODEW/2) && x > cx - (NODEW/2)) && (y < cy + (NODEW/2) && y > cy - (NODEW/2)) ) {
+						return this.verts[v];
+					}
+				}
+			}
+			return false;
 		},
 		
 		// Draw the graph itself
@@ -275,11 +323,15 @@ window.onload = function() {
 
 			// For every vertex...
 			for (v in this.verts) {
+			
 				var vert = this.verts[v];
-if (vert == null) { continue; }
+				// Skip this one if null
+				if (vert == null) { continue; }
+				// Otherwise, set up its physical properties. 
 				if (vert.entry == null) {
 					vert.entry = this.addPhysicalVert();
 				}
+				// Base calculations off the center of the node, for convenience.
 				vert.cx = vert.entry.getX() + (vert.entry.getW()/2);
 				vert.cy = vert.entry.getY() + (vert.entry.getH()/2);
 				ctx.fillStyle = "#444444";
@@ -289,7 +341,7 @@ if (vert == null) { continue; }
 				ctx.fill(); 
 				if (vert.isHighlighted()) {
 					ctx.beginPath();
-					ctx.strokeStyle = "#883";
+					ctx.strokeStyle = "#ed4";
 					ctx.lineWidth = 3;
 					ctx.arc(vert.entry.getX()+vert.entry.getW()/2,vert.entry.getY()+vert.entry.getH()/2,vert.entry.getW()/2,0,2*Math.PI);
 					ctx.stroke();
@@ -300,22 +352,57 @@ if (vert == null) { continue; }
 				ctx.font = "18px Arial";
 				ctx.fillText(vert.nid, vert.cx, vert.cy);
 			}
+			
+			// Iterate through the edges
 			for (e in this.edges) {
+			
+				// Stroke each edge
 				var edge = this.edges[e];
-if (edge == null) { continue; }
+				if (edge == null) { continue; }
 				this.c = color();
+				ctx.lineWidth = 2;
 				ctx.beginPath();
-				ctx.strokeStyle="rgb(" + this.c.R + "," + this.c.G + "," + this.c.B + ")";
+				ctx.strokeStyle="rgb(" + edge.color.R + "," + edge.color.G + "," + edge.color.B + ")";
 				ctx.moveTo(edge.n1.cx, edge.n1.cy);
 				ctx.lineTo(edge.n2.cx, edge.n2.cy);
+				ctx.stroke();
+				
+				//if (edge.edgeText != "") {
+					ctx.fillStyle = "#000000";
+					ctx.font = "15px Arial";
+					ctx.fillText(edge.edgeText, edge.n1.cx + ((edge.n2.cx - edge.n1.cx)/2), edge.n1.cy + ((edge.n2.cy - edge.n1.cy)/2));
+				//}
+				
+				// Start a new path to draw an arrow at the end of the edge, indicating direction
+				// @TODO only if directional
+				ctx.beginPath();
+				rs = Math.sqrt(Math.pow(edge.n1.cx, 2) + Math.pow(edge.n1.cy, 2));
+				ts = Math.atan(edge.n1.cy / edge.n1.cx);
+				rd = Math.sqrt(Math.pow(edge.n2.cx, 2) + Math.pow(edge.n2.cy, 2));
+				td = Math.atan(edge.n2.cy / edge.n2.cx);
+				
+				// Get angle of line from prev node to current node
+				xDiff = edge.n2.cx - edge.n1.cx; 
+				yDiff = edge.n2.cy - edge.n1.cy;
+				ang = Math.atan2(yDiff, xDiff);
+				
+				// Draw arrow, thicker than rest of line.
+				ctx.lineWidth = 4;
+				ctx.lineTo(edge.n2.cx - 15*Math.cos(ang+.5), edge.n2.cy - 15*Math.sin(ang+.5));
+				ctx.lineTo(edge.n2.cx, edge.n2.cy);
+				ctx.lineTo(edge.n2.cx - 15*Math.cos(ang-.5), edge.n2.cy - 15*Math.sin(ang-.5));
+				ctx.lineTo(edge.n2.cx, edge.n2.cy);
+				ctx.stroke();
+				ctx.lineWidth = 2;
 				/*
 				var x = Math.pow((this.n2.cx - this.n1.cx), 2);
 				var y = Math.pow((this.n2.cy - this.n1.cy), 2);
 				var dist = Math.sqrt(x+			alert('looping');y);
 				ctx.arcTo(this.n1.cx, this.n1.cy, this.n2.cx, this.n2.cy, dist);
 				*/
-				ctx.stroke();
-			}
+			
+			} // End of for each edge
+			
 		} // End of draw()
 		
 	} // End of Graph prototype
@@ -343,10 +430,14 @@ if (edge == null) { continue; }
 	function Edge(in1, in2) {
 		this.n1 = in1;
 		this.n2 = in2;
-	
+		this.color = color();
+		this.edgeText = "";
 	}
 
 	Edge.prototype = {
+		setText:function(text) {
+			this.edgeText = text;
+		}
 	} // End of Edge prototype
 
 	document.getElementById("addnode").addEventListener("click", function() {
@@ -370,6 +461,47 @@ if (edge == null) { continue; }
 	*/
 	var g = new Graph();
 	//g.tetrahedral();
+	
+	$("#gcanvas").mousedown(function(e) {
+		spotX = e.pageX - $(this).offset().left;
+		spotY = e.pageY - $(this).offset().top;
+		if ((result = g.checkSpotForNode(spotX, spotY)) !== false) {
+			result.isSelected = true;
+			g.highlightOnly(result);
+			g.nodeSelected = result;
+		}
+		g.draw();
+	});
+	
+	$("#gcanvas").mouseup(function(e) {
+		spotX = e.pageX - $(this).offset().left;
+		spotY = e.pageY - $(this).offset().top;
+		if ((result = g.checkSpotForNode(spotX, spotY)) == false) {
+			if (g.nodeSelected !== -1) {
+				g.nodeSelected.isSelected = false;
+				g.nodeSelected.highlighted = false;
+				//alert(g.nodeSelected.nid);
+				g.nodeSelected.entry.setX(spotX);
+				g.nodeSelected.entry.setY(spotY);
+				g.nodeSelected = -1;
+				g.draw();
+			}
+			else {
+				var node = g.addNode();
+				node.entry = g.addPhysicalVertDefined(spotX, spotY);
+				g.draw();
+			}
+		}
+	});
+	/*
+	$("#gcanvas").click(function(e) {
+		node = g.addNode();
+		spotX = e.pageX - $(this).offset().left;
+		spotY = e.pageY - $(this).offset().top;
+		node.entry = g.addPhysicalVertDefined(spotX, spotY);
+		g.draw();
+	});
+	*/
 	window.setInterval(function() { g.tick(); }, ANIM_SPEED);
 	//g.draw();
 

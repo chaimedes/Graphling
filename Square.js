@@ -21,4 +21,16 @@ function Square(inx, iny, inw, inh) {
 	this.getH = function() {
 		return this.h;
 	}
+	this.setX = function(x) {
+		this.x = x;
+	}
+	this.setY = function(y) {
+		this.y = y;
+	}
+	this.setW = function(w) {
+		this.w = w;
+	}
+	this.setH = function(h) {
+		this.h = h;
+	}
 } // End of Square constructor
