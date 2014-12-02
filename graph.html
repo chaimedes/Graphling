@@ -8,15 +8,14 @@
 <script type="text/javascript" src="jquery-1.11.1.min.js"></script>
 <script>
 
-var NODEW = 50;
-var NODEH = 50;
-var EDGEL = 20;
+var NODEW = 50; // Width of a node
+var NODEH = 50; // Height of a node.
+var EDGEL = 20; // Edge length (but not really)
 var CANW = 800; // The width for the drawing canvas
 var CANH = 600; // The height for the drawing canvas
-var curfx = CANW/2;
-var curfy = CANH/2;
-var curr = NODEW;
-var cura = 0;
+var curfx = CANW/2; // Default initial spot for first node
+var curfy = CANH/2; // Default initial spot for first node 
+
 
 var ANIM_SPEED = 1000; // MS
 
@@ -98,8 +97,16 @@ window.onload = function() {
 		// Remove a node from the graph safely.
 		removeNode:function(id) {
 			reportLine("Starting removal of node " + id + ".");
-			var nok = this.verts[id];
-			if (!nok) { return "Node " + id + " doesn't seem to exist."; }
+			var nok = -1;
+			var loc = -1;
+			for (var i in this.verts) {
+				if (this.verts[i].nid == id) {
+					nok = this.verts[i];
+					loc = i;
+					break;
+				}
+			}
+			if (!nok || nok == -1) { alert("ertert"); return "Node " + id + " doesn't seem to exist."; }
 
 			/* Hold the edges to delete until AFTER the entire iteration,
 				because otherwise the array resizes and you miss edges. */
@@ -118,7 +125,7 @@ window.onload = function() {
 				reportLine("Removing edge " + spliceList[e1] + ".");
 				this.edges.splice(spliceList[e1], 1);
 			}
-			this.verts.splice(id,1);
+			this.verts.splice(i,1);
 			//this.verts[id] == null;
 			delete spliceList;
 			reportLine("Removed node " + id + ".");
@@ -134,11 +141,11 @@ window.onload = function() {
 		// Connect two nodes with a new edge.
 		// This function INTENTIONALLY does not check if the nodes are already connected.
 		// That option is given to the user via the connected() function.
-		connect:function(n1, n2) {
+		connect:function(n1, n2, directed) {
 			var n1ok = this.verts[n1];
 			var n2ok = this.verts[n2];
 		    if (n1ok && n2ok) {
-				var temp = new Edge(n1ok, n2ok);
+				var temp = new Edge(n1ok, n2ok, directed);
 				temp.setText(Math.floor(Math.random()*5));
 				this.edges.push(temp);
 				reportLine("Connecting " + n1 + " and " + n2 + ": success.");
@@ -208,13 +215,6 @@ window.onload = function() {
 		
 			var curSpot = getFreeSpot();
 			
-			// Right now, just update the free spot radially, moving slightly outward each time.
-			// @TODO write a better way to place new nodes.
-			curr += EDGEL;
-			cura += (360 / this.verts.length);
-			curfx = curr * Math.cos(cura*(Math.PI/180)) + CANW/2;
-			curfy = curr * Math.sin(cura*(Math.PI/180)) + CANH/2;
-			
 			curfx = Math.floor(Math.random() * CANW);
 			curfy = Math.floor(Math.random() * CANH);
 			
@@ -254,15 +254,15 @@ window.onload = function() {
 			for (var j = 0; j < this.verts.length; j++) {
 				for (var k = 0; k < this.verts.length; k++) {
 					if (j != k && !this.connected(j, k)) {
-						setTimeout(function() {self.connect(j, k); self.draw(); }, 50);
+						setTimeout(function() {self.connect(j, k, false); self.draw(); }, 50);
 					}
 				}
 			}
 		},
 		
 		// Some really basic animation that works around the self-referencing timer problem.
-		tick:function() {
-			tickLimit = 10;
+		animk4:function() {
+			tickLimit = 5;
 			var n = 0;
 			if (this.tickTimer < tickLimit) {
 				this.tickTimer++;
@@ -281,9 +281,13 @@ window.onload = function() {
 				for (var k = 0; k < this.verts.length; k++) {
 					if (j != k && !this.connected(j, k)) {
 						reportLine(j + " and " + k + " not connected yet.");
-						this.connect(j, k);
+						this.connect(j, k, false);
 					}
 				}
+			}
+			if (this.tickTimer >= tickLimit) {
+				clearInterval(anim);
+				document.getElementById("k4").innerHTML = "Animate K<sub>4</sub> Graph";
 			}
 			this.draw();
 		},
@@ -316,10 +320,6 @@ window.onload = function() {
 			// Clear the screen and reset the physical variables
 			ctx.fillStyle="#FFFFFF";
 			ctx.fillRect(0,0,CANW,CANH);
-			//curfx = CANW/2;
-			//curfy = CANH/2;
-			curr = NODEW;
-			cura = 0;
 
 			// For every vertex...
 			for (v in this.verts) {
@@ -368,32 +368,36 @@ window.onload = function() {
 				ctx.stroke();
 				
 				//if (edge.edgeText != "") {
+				/*
 					ctx.fillStyle = "#000000";
 					ctx.font = "15px Arial";
 					ctx.fillText(edge.edgeText, edge.n1.cx + ((edge.n2.cx - edge.n1.cx)/2), edge.n1.cy + ((edge.n2.cy - edge.n1.cy)/2));
+				*/
 				//}
 				
 				// Start a new path to draw an arrow at the end of the edge, indicating direction
 				// @TODO only if directional
-				ctx.beginPath();
-				rs = Math.sqrt(Math.pow(edge.n1.cx, 2) + Math.pow(edge.n1.cy, 2));
-				ts = Math.atan(edge.n1.cy / edge.n1.cx);
-				rd = Math.sqrt(Math.pow(edge.n2.cx, 2) + Math.pow(edge.n2.cy, 2));
-				td = Math.atan(edge.n2.cy / edge.n2.cx);
-				
-				// Get angle of line from prev node to current node
-				xDiff = edge.n2.cx - edge.n1.cx; 
-				yDiff = edge.n2.cy - edge.n1.cy;
-				ang = Math.atan2(yDiff, xDiff);
-				
-				// Draw arrow, thicker than rest of line.
-				ctx.lineWidth = 4;
-				ctx.lineTo(edge.n2.cx - 15*Math.cos(ang+.5), edge.n2.cy - 15*Math.sin(ang+.5));
-				ctx.lineTo(edge.n2.cx, edge.n2.cy);
-				ctx.lineTo(edge.n2.cx - 15*Math.cos(ang-.5), edge.n2.cy - 15*Math.sin(ang-.5));
-				ctx.lineTo(edge.n2.cx, edge.n2.cy);
-				ctx.stroke();
-				ctx.lineWidth = 2;
+				if (edge.isDirected) {
+					ctx.beginPath();
+					rs = Math.sqrt(Math.pow(edge.n1.cx, 2) + Math.pow(edge.n1.cy, 2));
+					ts = Math.atan(edge.n1.cy / edge.n1.cx);
+					rd = Math.sqrt(Math.pow(edge.n2.cx, 2) + Math.pow(edge.n2.cy, 2));
+					td = Math.atan(edge.n2.cy / edge.n2.cx);
+					
+					// Get angle of line from prev node to current node
+					xDiff = edge.n2.cx - edge.n1.cx; 
+					yDiff = edge.n2.cy - edge.n1.cy;
+					ang = Math.atan2(yDiff, xDiff);
+					
+					// Draw arrow, thicker than rest of line.
+					ctx.lineWidth = 4;
+					ctx.lineTo(edge.n2.cx - 15*Math.cos(ang+.5), edge.n2.cy - 15*Math.sin(ang+.5));
+					ctx.lineTo(edge.n2.cx, edge.n2.cy);
+					ctx.lineTo(edge.n2.cx - 15*Math.cos(ang-.5), edge.n2.cy - 15*Math.sin(ang-.5));
+					ctx.lineTo(edge.n2.cx, edge.n2.cy);
+					ctx.stroke();
+					ctx.lineWidth = 2;
+				}
 				/*
 				var x = Math.pow((this.n2.cx - this.n1.cx), 2);
 				var y = Math.pow((this.n2.cy - this.n1.cy), 2);
@@ -403,7 +407,60 @@ window.onload = function() {
 			
 			} // End of for each edge
 			
-		} // End of draw()
+		}, // End of draw()
+		
+		BellmanFord:function(source) {
+		/*
+			this.tickTimer++;
+			var n = 0;
+			
+			weights = new Array();
+			predecessors = new Array();
+			
+			// Initialization
+			for (var v in this.verts) {
+				if (this.verts[v].nid = source) {
+					weights[v] = 0;
+				}
+				else {
+					weights[v] = Infinity;
+					predecessors[v] = null;
+				}
+			} // End of initialization
+			
+			// Relaxation
+			for (var i = 0; i < this.verts.length-1; i++) {
+				for (var e in this.edges) {
+					if (weights[this.edges[e].n1.nid] + Integer(this.edges[e].edgeText) == weights[this.edges[e].n2.nid]) {
+						weights[this.edges[e].n2.nid] = weights[this.edges[e].n1.nid] + Integer(this.edges[e].edgeText);
+						predecessors[this.edges[e].n2.nid] = this.edges[e].n1.nid;
+			
+       for each edge (u, v) with weight w in edges:
+           if weight[u] + w < weight[v]:
+               weight[v] := weight[u] + w
+               predecessor[v] := u
+			   
+			
+			if (this.tickTimer < 5) {
+				n = this.addNode();
+				n.highlight(true);
+				for (var j = 0; j < this.verts.length; j++) {
+					if (n.nid != this.verts[j].nid) {
+						this.verts[j].highlight(false);
+					}
+				}
+			}
+			for (var j = 0; j < this.verts.length; j++) {
+				for (var k = 0; k < this.verts.length; k++) {
+					if (j != k && !this.connected(j, k)) {
+						reportLine(j + " and " + k + " not connected yet.");
+						this.connect(j, k, true);
+					}
+				}
+			}
+			this.draw();
+			*/
+		}
 		
 	} // End of Graph prototype
 
@@ -427,9 +484,10 @@ window.onload = function() {
 			
 	} // End of Node prototype
 	
-	function Edge(in1, in2) {
+	function Edge(in1, in2, directed) {
 		this.n1 = in1;
 		this.n2 = in2;
+		this.isDirected = directed;
 		this.color = color();
 		this.edgeText = "";
 	}
@@ -440,12 +498,17 @@ window.onload = function() {
 		}
 	} // End of Edge prototype
 
+	document.getElementById("k4").addEventListener("click", function() {
+		document.getElementById("k4").innerHTML = "Animating...";
+		anim = window.setInterval(function() { g.animk4(); }, ANIM_SPEED);
+	});	
+
 	document.getElementById("addnode").addEventListener("click", function() {
 	g.addNode();
 	g.draw();
 	});
 	document.getElementById("connect").addEventListener("click", function() {
-	report.innerHTML = report.innerHTML + "<br />" + g.connect(document.getElementById("v1").value, document.getElementById("v2").value);
+	report.innerHTML = report.innerHTML + "<br />" + g.connect(document.getElementById("v1").value, document.getElementById("v2").value, true);
 	g.draw();
 	});
 	document.getElementById("delete").addEventListener("click", function() {
@@ -462,37 +525,98 @@ window.onload = function() {
 	var g = new Graph();
 	//g.tetrahedral();
 	
-	$("#gcanvas").mousedown(function(e) {
-		spotX = e.pageX - $(this).offset().left;
-		spotY = e.pageY - $(this).offset().top;
-		if ((result = g.checkSpotForNode(spotX, spotY)) !== false) {
-			result.isSelected = true;
-			g.highlightOnly(result);
-			g.nodeSelected = result;
-		}
-		g.draw();
-	});
 	
-	$("#gcanvas").mouseup(function(e) {
+	// On mousedown
+	$("#gcanvas").mousedown(function(e) {
+	
+		// Get the click point.
 		spotX = e.pageX - $(this).offset().left;
 		spotY = e.pageY - $(this).offset().top;
-		if ((result = g.checkSpotForNode(spotX, spotY)) == false) {
-			if (g.nodeSelected !== -1) {
-				g.nodeSelected.isSelected = false;
-				g.nodeSelected.highlighted = false;
-				//alert(g.nodeSelected.nid);
-				g.nodeSelected.entry.setX(spotX);
-				g.nodeSelected.entry.setY(spotY);
-				g.nodeSelected = -1;
-				g.draw();
-			}
-			else {
-				var node = g.addNode();
-				node.entry = g.addPhysicalVertDefined(spotX, spotY);
-				g.draw();
-			}
-		}
-	});
+		
+		// Differentiate between mouse buttons
+		switch(e.which) {
+			
+			// Left button
+			case 1:
+				// If the user clicked on a node...
+				if ((result = g.checkSpotForNode(spotX, spotY)) !== false) {
+					
+					// ...if there was already a node selected, connect the two nodes.
+					if (g.nodeSelected !== -1) {
+						g.connect(g.nodeSelected.nid, result.nid, true);
+						g.nodeSelected = -1;
+					}
+					
+					// Otherwise, select the node.
+					else {
+						result.isSelected = true;
+						g.highlightOnly(result);
+						g.nodeSelected = result;
+					}
+					
+				} // End of if user clicked on a node.
+				break;
+				
+			// Right button
+			case 3:
+				// If the user clicked on a node...
+				if ((result = g.checkSpotForNode(spotX, spotY)) !== false) {
+					if (g.nodeSelected = result) {
+						g.nodeSelected = -1;
+					}
+					g.removeNode(result.nid);
+				}
+				break;
+		
+		} // End of differentiate between mouse buttons
+		
+		g.draw(); // No matter what, redraw the graph.
+		
+	}); // End of on mousedown
+	
+	
+	// On mouseup
+	$("#gcanvas").mouseup(function(e) {
+	
+		// Get the click point
+		spotX = e.pageX - $(this).offset().left;
+		spotY = e.pageY - $(this).offset().top;
+	
+		// Differentiate mouse buttons
+		switch(e.which) {
+			
+			// Left button
+			case 1:
+				
+				// If the user did not click on a node...
+				if ((result = g.checkSpotForNode(spotX, spotY)) == false) {
+				
+					// ...and if there was already a node selected, move that node.
+					if (g.nodeSelected !== -1) {
+						g.nodeSelected.isSelected = false;
+						g.nodeSelected.highlighted = false;
+						//alert(g.nodeSelected.nid);
+						g.nodeSelected.entry.setX(spotX);
+						g.nodeSelected.entry.setY(spotY);
+						g.nodeSelected = -1;
+					}
+					
+					// Otherwise, add a new node at the click location.
+					else {
+						var node = g.addNode();
+						node.entry = g.addPhysicalVertDefined(spotX, spotY);
+					}
+			
+				} // End of if the user did not click on a node
+				break;
+		
+		} // End of switch for buttons
+		
+		g.draw(); // No matter what, redraw the graph.
+		
+	}); // End of on mouseup
+	
+	
 	/*
 	$("#gcanvas").click(function(e) {
 		node = g.addNode();
@@ -502,16 +626,19 @@ window.onload = function() {
 		g.draw();
 	});
 	*/
-	window.setInterval(function() { g.tick(); }, ANIM_SPEED);
+	//window.setInterval(function() { g.tick(); }, ANIM_SPEED);
 	//g.draw();
 
 } // End of onload function
 
 </script>
 </head>
-<body>
+<body oncontextmenu="return false;">
 <div id="zone"></div>
-<div id="controls">
+<div id="button-group">
+<button id="k4">Animate K<sub>4</sub> Graph</button>
+</div>
+<div id="controls" class="noshow">
 <button id="addnode">Add Node</button><br />
 <input type="text" id="v1" placeholder="ID of Vertex #1" />
 <input type="text" id="v2" placeholder="ID of Vertex #2" />

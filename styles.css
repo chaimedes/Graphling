@@ -23,3 +23,9 @@ float: left;
 	float: right;
 	clear: right;
 }
+.noshow {
+	display: none;
+}
+#gcanvas {
+	border: 1px solid #000;
+}
