@@ -4,6 +4,12 @@ Copyright Martin Berlove 2014
 11/12/14
 */
 
+body {
+
+background: #f9f9ff;
+font-family: “Trebuchet MS”, sans-serif;
+
+}
 .node {
 width: 50px;
 height: 50px;
@@ -27,5 +33,41 @@ float: left;
 	display: none;
 }
 #gcanvas {
-	border: 1px solid #000;
+	background: #fff;
+	border-right: 5px inset #000;
+}
+.gray {
+	background: #333;
+	color: white;
+}
+.bar {
+	padding: 12px 0px;
+}
+.full-width {
+	width: 100%;
+}
+.header {
+	
+}
+.footer, #footer {
+	font-size: 1.5ex;
+}
+.centered {
+	margin: auto;
+	text-align: center;
+}
+smaller {
+	font-size: smaller;
+}
+#examples {
+	background: #667;
+	color: #ccc;
+}
+#settings {
+	background: #ccd;
+	color: #666;
+}
+.button-group {
+	margin-left: 1%;
+	margin-right: 1%;
 }

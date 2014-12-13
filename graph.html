@@ -2,27 +2,23 @@
 <head>
 <title>Graphling</title>
 <link rel="stylesheet" type="text/css" href="styles.css" />
+<script src="Physical.js"></script>
 <script src="Spot.js"></script>
 <script src="Square.js"></script>
 <script src="Utilities.js"></script>
+<script src="Node.js"></script>
+<script src="Edge.js"></script>
 <script type="text/javascript" src="jquery-1.11.1.min.js"></script>
 <script>
 
 var NODEW = 50; // Width of a node
 var NODEH = 50; // Height of a node.
 var EDGEL = 20; // Edge length (but not really)
-var CANW = 800; // The width for the drawing canvas
-var CANH = 600; // The height for the drawing canvas
-var curfx = CANW/2; // Default initial spot for first node
-var curfy = CANH/2; // Default initial spot for first node 
+var reporting = false; // Whether debugging reports should be shown (user messages, such as algorithm results, will still be shown).
+var directedArcs = true;
 
 
 var ANIM_SPEED = 1000; // MS
-
-// Returns the next free spot as defined by the addPhysicalVert() function.
-function getFreeSpot() {
-	return new Spot(curfx, curfy);
-}
 
 // Onload function. Set everything up.
 window.onload = function() {
@@ -35,13 +31,23 @@ window.onload = function() {
 	
 	var report = document.getElementById("report");
 	
-	function reportLine(text) {
-		report.innerHTML = report.innerHTML + text + "<br />";
-	}
+	function reportLine(text, level) {
+		if (reporting || level == "message") { 
+			report.innerHTML = report.innerHTML + text + "<br />";
+		}
+		else {
+			// Could do something here like report to file.
+		}
+	} // End of reportLine(2)
 
-	function reportSingle(text) {
-		report.innerHTML = report.innerHTML + text;
-	}
+	function reportSingle(text, level) {
+		if (reporting || level == "message") {
+			report.innerHTML = report.innerHTML + text;
+		}
+		else {
+			// Could do something here like report to file.
+		}
+	} // End of reportSingle
 	
 	
 	// Define the Graph constructor.
@@ -90,13 +96,13 @@ window.onload = function() {
 			var idToUse = this.getNewId();
 			var node = new Node(idToUse);
 			this.verts.push(node);
-			reportLine("Added new node with id " + idToUse + ".");
+			reportLine("Added new node with id " + idToUse + ".", "debug");
 			return node;
 		},
 		
 		// Remove a node from the graph safely.
 		removeNode:function(id) {
-			reportLine("Starting removal of node " + id + ".");
+			reportLine("Starting removal of node " + id + ".", "debug");
 			var nok = -1;
 			var loc = -1;
 			for (var i in this.verts) {
@@ -122,13 +128,13 @@ window.onload = function() {
 				}
 			}
 			for (var e1 = 0; e1 < spliceList.length; e1++) {
-				reportLine("Removing edge " + spliceList[e1] + ".");
+				reportLine("Removing edge " + spliceList[e1] + ".", "debug");
 				this.edges.splice(spliceList[e1], 1);
 			}
 			this.verts.splice(i,1);
 			//this.verts[id] == null;
 			delete spliceList;
-			reportLine("Removed node " + id + ".");
+			reportLine("Removed node " + id + ".", "debug");
 		},
 		getNode:function(nid) {
 			for (var i in this.verts) {
@@ -148,8 +154,9 @@ window.onload = function() {
 				var temp = new Edge(n1ok, n2ok, directed);
 				temp.setText(Math.floor(Math.random()*5));
 				this.edges.push(temp);
-				reportLine("Connecting " + n1 + " and " + n2 + ": success.");
-				return "Connecting " + n1 + " and " + n2 + ": success.<br />";
+				reportLine("Connecting " + n1 + " and " + n2 + ": success.", "debug");
+				//return "Connecting " + n1 + " and " + n2 + ": success.<br />";
+				return temp;
 			}
 			return "Node " + ((!n1ok)?n1:n2) + " doesn't seem to exist";
 		},
@@ -157,12 +164,12 @@ window.onload = function() {
 		// Perform a simple disconnect by removing the specified edge.
 		// No safety features.		
 		simpleDisconnect:function(edge, sList) {
-			reportSingle("Disconnecting edge " + edge + "(" + this.edges[edge].n1.nid + ", " + this.edges[edge].n2.nid + ").");
+			reportSingle("Disconnecting edge " + edge + "(" + this.edges[edge].n1.nid + ", " + this.edges[edge].n2.nid + ").", "debug");
 			if (this.edges[edge] != null) {
 				this.edges[edge] = null;
 				sList.push(edge);
 			}
-			reportLine("...success.");
+			reportLine("...success.", "debug");
 		},
 
 		// Disconnect two nodes, removing their edge.
@@ -260,7 +267,11 @@ window.onload = function() {
 			}
 		},
 		
+		
+		// ANIMATION FUNCTIONS //
 		// Some really basic animation that works around the self-referencing timer problem.
+		
+		// Animate the construction of a k4 graph.
 		animk4:function() {
 			tickLimit = 5;
 			var n = 0;
@@ -280,23 +291,217 @@ window.onload = function() {
 			for (var j = 0; j < this.verts.length; j++) {
 				for (var k = 0; k < this.verts.length; k++) {
 					if (j != k && !this.connected(j, k)) {
-						reportLine(j + " and " + k + " not connected yet.");
+						reportLine(j + " and " + k + " not connected yet.", "debug");
 						this.connect(j, k, false);
 					}
 				}
 			}
 			if (this.tickTimer >= tickLimit) {
 				clearInterval(anim);
-				document.getElementById("k4").innerHTML = "Animate K<sub>4</sub> Graph";
+				document.getElementById("k4").innerHTML = "K<sub>4</sub> Construction";
 			}
 			this.draw();
-		},
+		}, // End of animk4
+		
+		// Animate a Hamilton path
+		animHam:function() {
+		
+			var tickLimit = 10;
+			
+			// Set up all the nodes and edges
+			if (this.tickTimer == 0) {
+				n1 = this.addNode();
+				n2 = this.addNode();
+				n3 = this.addNode();
+				n4 = this.addNode();
+				n5 = this.addNode();
+				e1 = this.connect(n1.nid, n2.nid, false);
+				e2 = this.connect(n2.nid, n3.nid, false);
+				e3 = this.connect(n3.nid, n4.nid, false);
+				e4 = this.connect(n4.nid, n5.nid, false);
+				e5 = this.connect(n5.nid, n1.nid, false);
+				e6 = this.connect(n2.nid, n4.nid, false);
+			}
+			else if (this.tickTimer == 1) {
+				//alert(n1);
+				//this.highlightOnly(n1);
+				n1.highlight(true);
+			}
+			else if (this.tickTimer == 2) {
+				//this.highlightOnly(e1);
+				e1.highlight(true);
+			}
+			else if (this.tickTimer == 3) {
+				//this.highlightOnly(n2);
+				n2.highlight(true);
+			}
+			else if (this.tickTimer == 4) {
+				//this.highlightOnly(e2);
+				e2.highlight(true);
+			}
+			else if (this.tickTimer == 5) {
+				//this.highlightOnly(n3);
+				n3.highlight(true);
+			}
+			else if (this.tickTimer == 6) {
+				//this.highlightOnly(e3);
+				e3.highlight(true);
+			}
+			else if (this.tickTimer == 7) {
+				//this.highlightOnly(n4);
+				n4.highlight(true);
+			}
+			else if (this.tickTimer == 8) {
+				//this.highlightOnly(e4);
+				e4.highlight(true);
+			}
+			else if (this.tickTimer == 9) {
+				//this.highlightOnly(n5);
+				n5.highlight(true);
+			}/*
+			else if (this.tickTimer == 10) {
+				//this.highlightOnly(e5);
+				e5.highlight(true);
+			}*/
+			if (this.tickTimer >= tickLimit) {
+				clearInterval(anim);
+				document.getElementById("Ham").innerHTML = "Find a Hamilton Path";
+			}
+			this.tickTimer++;
+			this.draw();
+		}, // End of animk4
+		
+		// Generate a semi-random graph with a cycle and then demonstrate finding that cycle.
+		animCycle:function() {
+			
+			if (window.numMarked === null || window.numMarked === undefined) {
+				window.numMarked = 0;
+			}
+			
+			// Set up all the nodes and edges on the first step.
+			if (this.tickTimer == 0) {
+			//alert('here');
+			
+				var numv = Math.ceil(Math.random()*5);
+				
+				for (var i = 0; i < numv; i++) {
+					n1 = this.addNode();
+					n2 = this.addNode();
+				} // End of generate nodes
+				for (var v in this.verts) {
+					for (var u in this.verts) {
+						if (Math.floor(Math.random()*3) === 0) {
+							this.connect(this.verts[u].nid, this.verts[v].nid, false);
+						}
+					}
+				}
+				
+			} // End of first step
+			else {
+			
+				var marked;
+				if (marked === undefined) {
+					marked = new Array();
+				}
+				for (var e in this.edges) {
+					marked[this.edges[e]] = 0;
+				}
+				if (this.tickTimer < this.edges.length) {
+					if (marked[this.edges[this.tickTimer]] == 0) {
+						marked[this.edges[this.tickTimer]] = 1;
+						this.edges[this.tickTimer].highlight(true);
+						window.numMarked++;
+						//alert(numMarked);
+						if (window.numMarked >= this.verts.length) {
+							reportLine("Graph contains a cycle.", "message");
+							clearInterval(anim);
+							document.getElementById("cycle").innerHTML = "Checking for a Cycle";
+							//this.tickTimer = this.verts.length+1; // This is just to stop the animation for now.
+						}
+					}
+				}
+				else {
+					reportLine("Graph does not contain a cycle.", "message");
+					clearInterval(anim);
+					document.getElementById("cycle").innerHTML = "Checking for a Cycle";
+				}
+			}
+			this.tickTimer++;
+			//alert(this.tickTimer);
+			this.draw();
+			
+		}, // End of animCycle
+		
+		animSum:function() {
+		
+			if (window.visited === null || window.visited === undefined) {
+				window.visited = new Array();
+			}
+			if (window.rootEdge === null || window.rootEdge === undefined) {
+				window.rootEdge = 0;
+			}
+			if (window.edgeSum === null || window.edgeSum === undefined) {
+				window.edgeSum = 0;
+			}
+		
+			if (this.tickTimer === 0) {
+				var numv = Math.ceil(Math.random()*5) + 3;
+					
+				for (var i = 0; i < numv; i++) {
+					n1 = this.addNode();
+				} // End of generate nodes
+				for (var v in this.verts) {
+					for (var u in this.verts) {
+						if (Math.floor(Math.random()*3) === 0) {
+							if (!this.connected(this.verts[u].nid, this.verts[v].nid) && u != v) {
+								edge = this.connect(this.verts[u].nid, this.verts[v].nid, false);
+								edge.setText(Math.floor(Math.random()*10));
+							}
+						}
+					}
+				}
+				for (var e in this.edges) {
+					window.visited[e] = 0;
+				}
+			} // End of first step
+			else {
+				if (this.tickTimer <= this.edges.length) {
+					if (window.visited[window.rootEdge] == 0) {
+						window.visited[window.rootEdge] = 1;
+						this.edges[window.rootEdge].highlight(true);
+						//alert("Currently on edge from " + this.edges[window.rootEdge].n1.nid + " to " + this.edges[window.rootEdge].n2.nid + "(" + window.rootEdge + ") -- value " + eval(this.edges[window.rootEdge].edgeText));
+						window.edgeSum += eval(this.edges[window.rootEdge].edgeText);
+						for (var e in this.edges) {
+							//if ( (this.edges[e].n1.nid == this.edges[window.rootEdge].n1.nid || this.edges[e].n1.nid == this.edges[window.rootEdge].n2.nid || this.edges[e].n2.nid == this.edges[window.rootEdge].n1.nid || this.edges[e].n2.nid == this.edges[window.rootEdge].n2.nid) && window.visited[e] == 0) {
+							if (window.visited[e] == 0) {
+								//alert("Choosing edge from " + this.edges[e].n1.nid + " to " + this.edges[e].n2.nid + "(" + e + ")");
+								window.rootEdge = e;
+								break;
+							}
+						}
+					}
+				}
+				else {
+					reportLine("Graph sum was " + window.edgeSum + ".", "message");
+					clearInterval(anim);
+					document.getElementById("sum").innerHTML = "Weight Summation";
+				}
+			}
+			this.tickTimer++;
+			//alert(this.tickTimer);
+			this.draw();
+		}, // End of animSum
 		
 		highlightOnly:function(n) {
 			n.highlight(true);
 			for (var j = 0; j < this.verts.length; j++) {
 				if (n.nid != this.verts[j].nid) {
 					this.verts[j].highlight(false);
+				}
+			}
+			for (var k = 0; k < this.edges.length; k++) {
+				if (n.nid != this.edges[k].nid) {
+					this.edges[k].highlight(false);
 				}
 			}
 		},
@@ -325,20 +530,25 @@ window.onload = function() {
 			for (v in this.verts) {
 			
 				var vert = this.verts[v];
+				
 				// Skip this one if null
 				if (vert == null) { continue; }
 				// Otherwise, set up its physical properties. 
 				if (vert.entry == null) {
 					vert.entry = this.addPhysicalVert();
 				}
+				
 				// Base calculations off the center of the node, for convenience.
 				vert.cx = vert.entry.getX() + (vert.entry.getW()/2);
 				vert.cy = vert.entry.getY() + (vert.entry.getH()/2);
+				
+				// Draw the node
 				ctx.fillStyle = "#444444";
 				//ctx.fillRect(vert.entry.getX(), vert.entry.getY(), vert.entry.getW(), vert.entry.getH());
 				ctx.beginPath();
 				ctx.arc(vert.entry.getX()+vert.entry.getW()/2,vert.entry.getY()+vert.entry.getH()/2,vert.entry.getW()/2,0,2*Math.PI);
 				ctx.fill(); 
+				// Draw the highlighting, if necessary.
 				if (vert.isHighlighted()) {
 					ctx.beginPath();
 					ctx.strokeStyle = "#ed4";
@@ -351,7 +561,8 @@ window.onload = function() {
 				ctx.fillStyle = "#FFFFFF";
 				ctx.font = "18px Arial";
 				ctx.fillText(vert.nid, vert.cx, vert.cy);
-			}
+				
+			} // End of for each vertex
 			
 			// Iterate through the edges
 			for (e in this.edges) {
@@ -362,18 +573,26 @@ window.onload = function() {
 				this.c = color();
 				ctx.lineWidth = 2;
 				ctx.beginPath();
-				ctx.strokeStyle="rgb(" + edge.color.R + "," + edge.color.G + "," + edge.color.B + ")";
+				
+				if (edge.isHighlighted()) {
+					ctx.strokeStyle = "#ed4";
+					ctx.lineWidth = 3;
+				}
+				else {
+					ctx.strokeStyle="rgb(" + edge.color.R + "," + edge.color.G + "," + edge.color.B + ")";
+					ctx.lineWidth = 1;
+				}
 				ctx.moveTo(edge.n1.cx, edge.n1.cy);
 				ctx.lineTo(edge.n2.cx, edge.n2.cy);
 				ctx.stroke();
 				
-				//if (edge.edgeText != "") {
-				/*
+				if (edge.edgeText != "") {
+				
 					ctx.fillStyle = "#000000";
 					ctx.font = "15px Arial";
 					ctx.fillText(edge.edgeText, edge.n1.cx + ((edge.n2.cx - edge.n1.cx)/2), edge.n1.cy + ((edge.n2.cy - edge.n1.cy)/2));
-				*/
-				//}
+				
+				}
 				
 				// Start a new path to draw an arrow at the end of the edge, indicating direction
 				// @TODO only if directional
@@ -453,7 +672,7 @@ window.onload = function() {
 			for (var j = 0; j < this.verts.length; j++) {
 				for (var k = 0; k < this.verts.length; k++) {
 					if (j != k && !this.connected(j, k)) {
-						reportLine(j + " and " + k + " not connected yet.");
+						reportLine(j + " and " + k + " not connected yet.", "debug");
 						this.connect(j, k, true);
 					}
 				}
@@ -463,46 +682,53 @@ window.onload = function() {
 		}
 		
 	} // End of Graph prototype
-
-	function Node(inid) {
-		this.nid = inid;
-		this.highlighted = false;
-
-	} // End of Node constructor
-
-	Node.prototype = {
 	
-		// Toggles the highlighting of this node (used by draw())
-		highlight:function(toggle) {
-			this.highlighted = toggle;
-		},
-		
-		// Returns the value of the highlight toggle
-		isHighlighted:function() {
-			return this.highlighted;
-		}
-			
-	} // End of Node prototype
-	
-	function Edge(in1, in2, directed) {
-		this.n1 = in1;
-		this.n2 = in2;
-		this.isDirected = directed;
-		this.color = color();
-		this.edgeText = "";
-	}
 
-	Edge.prototype = {
-		setText:function(text) {
-			this.edgeText = text;
-		}
-	} // End of Edge prototype
 
 	document.getElementById("k4").addEventListener("click", function() {
 		document.getElementById("k4").innerHTML = "Animating...";
+		g.tickTimer = 0;
 		anim = window.setInterval(function() { g.animk4(); }, ANIM_SPEED);
 	});	
+	document.getElementById("Ham").addEventListener("click", function() {
+		document.getElementById("Ham").innerHTML = "Animating...";
+		g.tickTimer = 0;
+		anim = window.setInterval(function() { g.animHam(); }, ANIM_SPEED);
+	});
+	document.getElementById("cycle").addEventListener("click", function() {
+		document.getElementById("cycle").innerHTML = "Animating...";
+		g.tickTimer = 0;
+		anim = window.setInterval(function() { g.animCycle(); }, ANIM_SPEED);
+	});
+	document.getElementById("sum").addEventListener("click", function() {
+		document.getElementById("sum").innerHTML = "Animating...";
+		g.tickTimer = 0;
+		anim = window.setInterval(function() { g.animSum(); }, ANIM_SPEED);
+	});
 
+	
+	document.getElementById("clear").addEventListener("click", function() {
+		g.tickTimer = 0;
+		for (var v in g.verts) {
+			g.verts[v] = null;
+		}
+		for (var e in g.edges) {
+			g.edges[e] = null;
+		}
+		g.draw();
+	});
+	
+	document.getElementById("arc-control").addEventListener("click", function() {
+		directedArcs = !directedArcs;
+		if (!directedArcs) {document.getElementById("arc-control").innerHTML = "Edges Undirected";}
+		else {document.getElementById("arc-control").innerHTML = "Edges Directed";}
+	});
+	document.getElementById("report-control").addEventListener("click", function() {
+		reporting = !reporting;
+		if (!reporting) {document.getElementById("report-control").innerHTML = "Reporting Off";}
+		else {document.getElementById("report-control").innerHTML = "Reporting On";}
+	});
+	
 	document.getElementById("addnode").addEventListener("click", function() {
 	g.addNode();
 	g.draw();
@@ -543,7 +769,8 @@ window.onload = function() {
 					
 					// ...if there was already a node selected, connect the two nodes.
 					if (g.nodeSelected !== -1) {
-						g.connect(g.nodeSelected.nid, result.nid, true);
+						g.connect(g.nodeSelected.nid, result.nid, directedArcs);
+						g.verts[g.nodeSelected.nid].highlight(false);
 						g.nodeSelected = -1;
 					}
 					
@@ -634,9 +861,23 @@ window.onload = function() {
 </script>
 </head>
 <body oncontextmenu="return false;">
-<div id="zone"></div>
-<div id="button-group">
-<button id="k4">Animate K<sub>4</sub> Graph</button>
+<div id="header" class="gray bar full-width header"><h2 class="centered">Graphling <smaller><sub>Graph Theory Tool</sub></smaller></h2></div>
+<div id="settings" class="bar full-width">
+<div class="button-group">
+Settings
+<button id="arc-control">Edges Directed</button>
+<button id="report-control">Reporting Off</button>
+</div>
+</div> <!-- End of settings bar -->
+<div id="examples" class="bar full-width">
+<div class="button-group">
+Examples
+<button id="k4">K<sub>4</sub> Construction</button>
+<button id="Ham">Finding a Hamilton Path</button>
+<button id="cycle">Checking for a Cycle</button>
+<button id="sum">Weight Summation</button>
+<button id="clear">Clear</button>
+</div>
 </div>
 <div id="controls" class="noshow">
 <button id="addnode">Add Node</button><br />
@@ -646,7 +887,8 @@ window.onload = function() {
 <input type="text" id="vd" placeholder="ID of Vertex to Delete" />
 <button id="delete">Delete</button>
 </div><!-- End of controls div -->
-<div id="report"></div>
+<div id="report">Messages:<br /></div>
 <canvas id="gcanvas" width="800" height="600"></canvas>
+<div id="footer" class="gray bar full-width footer"><h2 class="centered">Created by Martin Berlove for CSE 392 (Independent Study -- Graph Theory)</h2></div>
 </body>
 </html>
