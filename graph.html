@@ -1,3 +1,9 @@
+<!--
+Graphling, the graph visualization tool for graph theory.
+Created for CSE 392 (Independent Study -- Graph Theory)
+Copyright Martin Berlove 2014
+-->
+
 <html>
 <head>
 <title>Graphling</title>
@@ -152,7 +158,7 @@ window.onload = function() {
 			var n2ok = this.verts[n2];
 		    if (n1ok && n2ok) {
 				var temp = new Edge(n1ok, n2ok, directed);
-				temp.setText(Math.floor(Math.random()*5));
+				//temp.setText(Math.floor(Math.random()*5));
 				this.edges.push(temp);
 				reportLine("Connecting " + n1 + " and " + n2 + ": success.", "debug");
 				//return "Connecting " + n1 + " and " + n2 + ": success.<br />";
